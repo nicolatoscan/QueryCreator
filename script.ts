@@ -39,6 +39,7 @@ function scriptMerge(field: Field[], table: string, schemaFrom: string, schemaTo
 
 
   const res = `MERGE [${schemaFrom}].[${table}] AS MyTarget USING (\n` + 
+  `SELECT \n` +
     [lastUpdateDtField, extKeyField, ...field].map(f => `\t${f.name}`).join(',\n') +
   `\n\tFROM ${schemaTo}.${table}` +
   `\n) AS MySource ON MyTarget.${extKey} = MySource.${extKey} WHEN MATCHED AND NOT (\n` +

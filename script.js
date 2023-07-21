@@ -43,6 +43,7 @@ function scriptMerge(field, table, schemaFrom, schemaTo, extKey) {
     var lastUpdateDtField = { name: 'LastUpdateDt', type: 'datetime' };
     var extKeyField = { name: extKey, type: 'string' };
     var res = "MERGE [".concat(schemaFrom, "].[").concat(table, "] AS MyTarget USING (\n") +
+        "SELECT \n" +
         __spreadArray([lastUpdateDtField, extKeyField], field, true).map(function (f) { return "\t".concat(f.name); }).join(',\n') +
         "\n\tFROM ".concat(schemaTo, ".").concat(table) +
         "\n) AS MySource ON MyTarget.".concat(extKey, " = MySource.").concat(extKey, " WHEN MATCHED AND NOT (\n") +
