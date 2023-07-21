@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Query Creator</title>
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      max-width: 970px;
+      margin: 5em auto;
+    }
+    textarea {
+      width: 100%;
+      margin-bottom: 10px;
+    }
+    input {
+      width: 100%;
+      margin-bottom: 10px;
+    }
+    button {
+      width: 100%;
+      margin-bottom: 10px;
+      height: 4em;
+    }
+  </style>
+</head>
+<body>
+  <textarea id="fields" cols="30" rows="10" placeholder="Fields"></textarea>
+  <input type="text" id="table" placeholder="Table" />
+  <input type="text" id="extKey" placeholder="ExtKey" />
+  <input type="text" id="schemaFrom" placeholder="Schema from"/>
+  <input type="text" id="schemaTo" placeholder="Schema to"/>
+
+
+  <button id="btn" onclick="parse()">Merge</button>
+  <textarea id="resultMerge" cols="30" rows="10" disabled></textarea>
+  <textarea id="resultND" cols="30" rows="10" disabled></textarea>
+
+  <script src="./script.js" ></script>
+</body>
+</html>
