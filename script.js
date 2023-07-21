@@ -14,6 +14,7 @@ var typesMap = {
     'date': '\'1900-01-01\'',
     'bit': '0',
     'decimal': '0',
+    'numeric': '0',
     'float': '0',
     'money': '0',
     'smallint': '0',
