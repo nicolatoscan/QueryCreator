@@ -1,13 +1,5 @@
-var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
-    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
-        if (ar || !(i in from)) {
-            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
-            ar[i] = from[i];
-        }
-    }
-    return to.concat(ar || Array.prototype.slice.call(from));
-};
-var typesMap = {
+"use strict";
+const typesMap = {
     'int': '0',
     'string': '\'\'',
     'datetime': '\'1900-01-01\'',
@@ -22,54 +14,86 @@ var typesMap = {
     'bigint': '0',
     'nvarchar': '\'\'',
 };
-function mapTypes(type, forND) {
-    if (forND === void 0) { forND = false; }
+function mapTypes(type, forND = false) {
     // remove [ ] from type
-    var res = typesMap[type.replace('[', '').replace(']', '')];
+    const res = typesMap[type.replace('[', '').replace(']', '')];
     if (!res) {
-        throw new Error("Type ".concat(type, " not found"));
+        throw new Error(`Type ${type} not found`);
     }
     if (forND && res == '\'\'')
         return '\'NA\'';
     return res;
 }
 function getFields(input) {
-    return input.split('\n').map(function (f) {
-        var _a = f.trim().split(' ').splice(0, 2), name = _a[0], type = _a[1];
+    return input.split('\n').map(f => {
+        const [name, type] = f.trim().split(' ').splice(0, 2);
         return { name: name.trim(), type: type.trim() };
     });
 }
 function scriptMerge(field, table, schemaFrom, schemaTo, extKey) {
-    var lastUpdateDtField = { name: 'LastUpdateDt', type: 'datetime' };
-    var extKeyField = { name: extKey, type: 'string' };
-    var res = "MERGE [".concat(schemaFrom, "].[").concat(table, "] AS MyTarget USING (\n") +
-        "SELECT \n" +
-        __spreadArray([lastUpdateDtField, extKeyField], field, true).map(function (f) { return "\t".concat(f.name); }).join(',\n') +
-        "\n\tFROM ".concat(schemaTo, ".").concat(table) +
-        "\n) AS MySource ON MyTarget.".concat(extKey, " = MySource.").concat(extKey, " WHEN MATCHED AND NOT (\n") +
-        field.map(function (f) { return "\tMySource.".concat(f.name, " = ISNULL(MyTarget.").concat(f.name, ",").concat(mapTypes(f.type), ")"); }).join(' AND\n') +
-        "\n) THEN UPDATE SET\n" +
-        __spreadArray([lastUpdateDtField], field, true).map(function (f) { return "\tMyTarget.".concat(f.name, " = MySource.").concat(f.name); }).join(',\n') +
+    const lastUpdateDtField = { name: 'LastUpdateDt', type: 'datetime' };
+    const extKeyField = { name: extKey, type: 'string' };
+    const res = `MERGE [${schemaFrom}].[${table}] AS MyTarget USING (\n` +
+        `SELECT \n` +
+        [lastUpdateDtField, extKeyField, ...field].map(f => `\t${f.name}`).join(',\n') +
+        `\n\tFROM ${schemaTo}.${table}` +
+        `\n) AS MySource ON MyTarget.${extKey} = MySource.${extKey} WHEN MATCHED AND NOT (\n` +
+        field.map(f => `\tMySource.${f.name} = ISNULL(MyTarget.${f.name},${mapTypes(f.type)})`).join(' AND\n') +
+        `\n) THEN UPDATE SET\n` +
+        [lastUpdateDtField, ...field].map(f => `\tMyTarget.${f.name} = MySource.${f.name}`).join(',\n') +
         ';';
     return res;
 }
 function scriptNd(field, table, schema, key) {
-    return "SET IDENTITY_INSERT ".concat(schema, ".").concat(table, " ON;\n") +
-        "IF NOT EXISTS(SELECT ".concat(key, " FROM ").concat(schema, ".").concat(table, " WHERE ").concat(key, " = 0)\n") +
-        "BEGIN INSERT INTO ".concat(schema, ".").concat(table, "(\n") +
-        field.map(function (f) { return "\t".concat(f.name); }).join(',\n') +
-        "\n) VALUES (\n" +
-        field.map(function (f) { return "\t".concat(mapTypes(f.type, true)); }).join(',\n') +
-        "\n) END;\n" +
-        "SET IDENTITY_INSERT ".concat(schema, ".").concat(table, " OFF;");
+    return `SET IDENTITY_INSERT ${schema}.${table} ON;\n` +
+        `IF NOT EXISTS(SELECT ${key} FROM ${schema}.${table} WHERE ${key} = 0)\n` +
+        `BEGIN INSERT INTO ${schema}.${table}(\n` +
+        field.map(f => `\t${f.name}`).join(',\n') +
+        `\n) VALUES (\n` +
+        field.map(f => `\t${mapTypes(f.type, true)}`).join(',\n') +
+        `\n) END;\n` +
+        `SET IDENTITY_INSERT ${schema}.${table} OFF;`;
 }
-function parse() {
-    // get text in textarea with id fields
-    var fields = getFields(document.getElementById('fields').value);
-    var table = document.getElementById('table').value;
-    var schemaFrom = document.getElementById('schemaFrom').value;
-    var schemaTo = document.getElementById('schemaTo').value;
-    var extKey = document.getElementById('extKey').value;
-    document.getElementById('resultMerge').value = scriptMerge(fields, table, schemaFrom, schemaTo, extKey);
-    document.getElementById('resultND').value = scriptNd(fields, table, schemaFrom, extKey);
+function getResultInput() {
+    return document.getElementById('result');
+}
+function getInputText(id) {
+    return document.getElementById(id).value?.trim() ?? '';
+}
+function merge() {
+    const fields = getFields(getInputText('fields'));
+    const table = getInputText('table');
+    const schemaFrom = getInputText('schemaFrom');
+    const schemaTo = getInputText('schemaTo');
+    const extKey = getInputText('extKey');
+    getResultInput().value = scriptMerge(fields, table, schemaFrom, schemaTo, extKey);
+}
+function nd() {
+    const fields = getFields(getInputText('fields'));
+    const table = getInputText('table');
+    const schema = getInputText('schema');
+    const extKey = getInputText('extKey');
+    getResultInput().value = scriptNd(fields, table, schema, extKey);
+}
+function parseQuery() {
+    let t = getInputText('query');
+    t = t.replace(/\r\n/g, '\\n').replace(/\n/g, '\\n').replace(/@(\w+)/g, '\'{$$$1}\'').replace(/DECLARE/g, '-- DECLARE');
+    if (!t.startsWith('"'))
+        t = `"${t}`;
+    if (!t.endsWith('"'))
+        t = `${t}"`;
+    getResultInput().value = t;
+}
+function deparseQuery() {
+    let t = getInputText('query');
+    if (t.startsWith('"'))
+        t = t.slice(1);
+    if (t.endsWith('"'))
+        t = t.slice(0, -1);
+    t = t.replace(/\\n/g, '\n').replace(/\'{\$(\w+)}'/g, '@$1').replace(/-- DECLARE/g, 'DECLARE');
+    getResultInput().value = t;
+}
+async function copy() {
+    const t = getInputText('result');
+    await navigator.clipboard.writeText(t);
 }

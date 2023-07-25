@@ -1,6 +1,6 @@
 type Field = {name: string, type: string};
 
-const typesMap = {
+const typesMap: { [id: string]: string } = {
   'int': '0',
   'string': '\'\'',
   'datetime': '\'1900-01-01\'',
@@ -62,13 +62,53 @@ function scriptNd(field: Field[], table: string, schema: string, key: string): s
     `SET IDENTITY_INSERT ${schema}.${table} OFF;`;
 }
 
-function parse() {
-  // get text in textarea with id fields
-  const fields = getFields((document.getElementById('fields') as HTMLTextAreaElement).value);
-  const table  = (document.getElementById('table') as HTMLInputElement).value;
-  const schemaFrom = (document.getElementById('schemaFrom') as HTMLInputElement).value;
-  const schemaTo = (document.getElementById('schemaTo') as HTMLInputElement).value;
-  const extKey = (document.getElementById('extKey') as HTMLInputElement).value;
-  (document.getElementById('resultMerge') as HTMLTextAreaElement).value = scriptMerge(fields, table, schemaFrom, schemaTo, extKey);
-  (document.getElementById('resultND') as HTMLTextAreaElement).value = scriptNd(fields, table, schemaFrom, extKey);
+function getResultInput() {
+  return document.getElementById('result') as HTMLTextAreaElement;
+}
+
+function getInputText(id: string) {
+  return(document.getElementById(id) as HTMLInputElement).value?.trim() ?? '';
+}
+
+
+function merge() {
+  const fields = getFields(getInputText('fields'));
+  const table  = getInputText('table');
+  const schemaFrom = getInputText('schemaFrom');
+  const schemaTo = getInputText('schemaTo');
+  const extKey = getInputText('extKey');
+  getResultInput().value = scriptMerge(fields, table, schemaFrom, schemaTo, extKey);
+}
+
+function nd() {
+  const fields = getFields(getInputText('fields'));
+  const table  = getInputText('table');
+  const schema = getInputText('schema');
+  const extKey = getInputText('extKey');
+  getResultInput().value = scriptNd(fields, table, schema, extKey);
+}
+
+function parseQuery() {
+  let t = getInputText('query');
+  t = t.replace(/\r\n/g, '\\n').replace(/\n/g, '\\n').replace(/@(\w+)/g, '\'{$$$1}\'').replace(/DECLARE/g, '-- DECLARE');
+  if (!t.startsWith('"'))
+    t = `"${t}`;
+  if (!t.endsWith('"'))
+    t = `${t}"`;
+  getResultInput().value = t;
+}
+
+function deparseQuery() {
+  let t = getInputText('query');
+  if (t.startsWith('"'))
+    t = t.slice(1)
+  if (t.endsWith('"'))
+    t = t.slice(0, -1)
+  t = t.replace(/\\n/g, '\n').replace(/\'{\$(\w+)}'/g, '@$1').replace(/-- DECLARE/g, 'DECLARE');
+  getResultInput().value = t;
+}
+
+async function copy() {
+  const t = getInputText('result');
+  await navigator.clipboard.writeText(t);
 }
