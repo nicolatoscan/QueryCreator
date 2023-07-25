@@ -1,5 +1,6 @@
 type Field = {name: string, type: string};
 
+// -- TYPES MAPPING
 const typesMap: { [id: string]: string } = {
   'int': '0',
   'string': '\'\'',
@@ -26,14 +27,26 @@ function mapTypes(type: string, forND: boolean = false): string {
   return res;
 }
 
-function getFields(input: string): Field[] {
+function getResultInput() {
+  return document.getElementById('result') as HTMLTextAreaElement;
+}
+
+function getInputText(id: string) {
+  return(document.getElementById(id) as HTMLInputElement).value?.trim() ?? '';
+}
+
+function getFieldsAndType(input: string): Field[] {
   return input.split('\n').map(f => {
     const [name, type] = f.trim().split(' ').splice(0,2);
     return { name: name.trim(), type: type.trim() };
   });
 }
 
-function scriptMerge(field: Field[], table: string, schemaFrom: string, schemaTo: string, extKey: string): string {
+function getFields(input: string): string[] {
+  return input.split('\n').map(f => f.trim().replace('[', '').replace(']', ''));
+}
+
+function queryMerge(field: Field[], table: string, schemaFrom: string, schemaTo: string, extKey: string): string {
   const lastUpdateDtField: Field = { name: 'LastUpdateDt', type: 'datetime' };
   const extKeyField: Field = { name: extKey, type: 'string' };
 
@@ -51,7 +64,7 @@ function scriptMerge(field: Field[], table: string, schemaFrom: string, schemaTo
   return res;
 }
 
-function scriptNd(field: Field[], table: string, schema: string, key: string): string {
+function queryND(field: Field[], table: string, schema: string, key: string): string {
   return `SET IDENTITY_INSERT ${schema}.${table} ON;\n` +
     `IF NOT EXISTS(SELECT ${key} FROM ${schema}.${table} WHERE ${key} = 0)\n` +
     `BEGIN INSERT INTO ${schema}.${table}(\n` +
@@ -62,30 +75,49 @@ function scriptNd(field: Field[], table: string, schema: string, key: string): s
     `SET IDENTITY_INSERT ${schema}.${table} OFF;`;
 }
 
-function getResultInput() {
-  return document.getElementById('result') as HTMLTextAreaElement;
+function queryUnion(fieldsA: Field[], fieldsB: Field[], tableA: string, tableB: string, key: string): string {
+  const allFields  =  [ ...new Set([...fieldsA, ...fieldsB]) ];
+  const allNames  = allFields.map(f => f.name);
+  const namesA = fieldsA.map(f => f.name);
+  const namesB = fieldsB.map(f => f.name);
+  return `SELECT\n` +
+    allFields.map(f => `\t${mapTypes(f.type, true)} AS ${f.name}`).join(',\n') +
+    `\n\nUNION ALL\n\n` +
+    `SELECT\n` +
+    allNames.map(n => namesA.includes(n) ? `\t${n}` : `\tNULL AS ${n}`).join(',\n') +
+    `\nFROM ${tableA}\n` +
+    `WHERE ${key} <> 0\n` +
+    `\nUNION ALL\n\n` +
+    `SELECT\n` +
+    allNames.map(n => namesB.includes(n) ? `\t${n}` : `\tNULL AS ${n}`).join(',\n') +
+    `\nFROM ${tableB}\n` +
+    `WHERE ${key} <> 0\n`;
 }
-
-function getInputText(id: string) {
-  return(document.getElementById(id) as HTMLInputElement).value?.trim() ?? '';
-}
-
 
 function merge() {
-  const fields = getFields(getInputText('fields'));
+  const fields = getFieldsAndType(getInputText('fields'));
   const table  = getInputText('table');
   const schemaFrom = getInputText('schemaFrom');
   const schemaTo = getInputText('schemaTo');
   const extKey = getInputText('extKey');
-  getResultInput().value = scriptMerge(fields, table, schemaFrom, schemaTo, extKey);
+  getResultInput().value = queryMerge(fields, table, schemaFrom, schemaTo, extKey);
 }
 
 function nd() {
-  const fields = getFields(getInputText('fields'));
+  const fields = getFieldsAndType(getInputText('fields'));
   const table  = getInputText('table');
   const schema = getInputText('schema');
   const key = getInputText('key');
-  getResultInput().value = scriptNd(fields, table, schema, key);
+  getResultInput().value = queryND(fields, table, schema, key);
+}
+
+function union() {
+  const fieldsA = getFieldsAndType(getInputText('fieldsA'));
+  const fieldsB = getFieldsAndType(getInputText('fieldsB'));
+  const tableA  = getInputText('tableA');
+  const tableB  = getInputText('tableB');
+  const key  = getInputText('key');
+  getResultInput().value = queryUnion(fieldsA, fieldsB, tableA, tableB, key);
 }
 
 function parseQuery() {
@@ -107,6 +139,8 @@ function deparseQuery() {
   t = t.replace(/\\n/g, '\n').replace(/\'{\$(\w+)}'/g, '@$1').replace(/-- DECLARE/g, 'DECLARE');
   getResultInput().value = t;
 }
+
+
 
 async function copy() {
   const t = getInputText('result');
