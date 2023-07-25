@@ -97,3 +97,13 @@ async function copy() {
     const t = getInputText('result');
     await navigator.clipboard.writeText(t);
 }
+let darktheme = localStorage.getItem('theme') == 'dark';
+setTheme();
+function toggleTheme() {
+    darktheme = !darktheme;
+    localStorage.setItem('theme', darktheme ? 'dark' : 'light');
+    setTheme();
+}
+function setTheme() {
+    document.documentElement.setAttribute('data-bs-theme', darktheme ? 'dark' : 'light');
+}
