@@ -84,8 +84,8 @@ function nd() {
   const fields = getFields(getInputText('fields'));
   const table  = getInputText('table');
   const schema = getInputText('schema');
-  const extKey = getInputText('extKey');
-  getResultInput().value = scriptNd(fields, table, schema, extKey);
+  const key = getInputText('key');
+  getResultInput().value = scriptNd(fields, table, schema, key);
 }
 
 function parseQuery() {
